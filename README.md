@@ -1,2 +1,92 @@
 # Javascript-Serializer
-Serialize almost any javascript variable to a string.
+
+This is a browser-based javascript serializer (it does not work on Node since this uses the `window` object). The `serialize` function can convert almost any variable into a string representation of itself. It's **useful for logs** and debugging.
+
+## Usage
+
+```javascript
+var obj = {
+  callMe: "function ishmael() { return 'whale'; }",
+  arrayStorage: [
+    "Infinity",
+    -Infinity,
+    [ /regexp/g, new Date(), () => { return 0; }, [1,"2",3e4] ]
+  ],
+  mapStorage: new Map([ 
+    [ () => { return 'mapper'; }, NaN ],
+  ])
+};
+
+// returns string representation of object
+var seralizedObj = serialize(obj); 
+
+// it can be deserialized back to an object
+var deserializedObj = deserialized(seralizedObj);
+```
+
+## Supported Types
+Type | Examples
+| --- | --- |
+null | `null`
+undefined | `undefined`
+number | `Infinity, -Infinity, NaN, 123.456, 789, 1e4, 1.2e+5`
+string | `'hello world', "hello world", hello ${world}`
+boolean | `true, false`
+symbol | `Symbol("hello world")`
+regexp literal | `/hello.*world/g`
+date | `new Date()`
+error | `new Error()`
+array | `['hello','world']`
+iterable | `Map, Set`
+named function | `function hello() { return 'world'; }`
+anonymous function | `function() { return 'goodbye world'; }`
+arrow function | `(result) => { return result; }`
+native function on the `window` | `Boolean, Date, Map, Number, Object, etc.`
+native object on the `window` | `Math, JSON, etc.`
+object with unique `toString()` | If it's string version is unique (in that it doesn't print `[object Object]`), serialize attempts to give you a string that will eval back to the object using that unique string.
+object that has `Object` prototype | A stringified version with all of its properties and symbols are created. If you ammended its prototype, those edits will be lost
+
+## Unsupported Types:
+Type | Explanation
+| --- | --- |
+objects with a common `toString()` method, a prototype different from `Object` and not iterable | ...so, for example, if you want to serialize a `Promise`, you'll just get the string: `[object Promise]`. That is because a `Promise` does not have a reflection method that gives me something I can eval back into a `Promise` object, and the function passed into new Promise() when creating it,  is being stored privately, so I can't access it to try and recreate the code string. ...here is a list of some example objects that can't be serialized: `Promise, WeakMap, WeakSet, ArrayBuffer, DataView, HTMLDocument, etc.`
+native functions and objects that are nested properties of the `window` |  In theory, they could be serialized,  if I chose to recursively search the `window` for them, but that's sounds crazy... the `window` can get massive. I might later add an option to turn a recursive search on for those who are daring. **If you try to serialize an object that has this type of value, you'll get undefined back for the whole thing.**
+  
+## Other Notes
+- `errors`: If you eval the the serialized error, it will be thrown.
+- `numbers`: There is no way to keep a number in scientific notation because they're always turned into fixed notation. `(1e4 -> 1000)`
+- `Proxy`: For some awful reason, a Proxy object's `__proto__.constructor.name` is equal to `Object`, so proxies become empty objects `{}`, instead of the string: `[object Proxy]`
+
+## Deserialize/Unserialize
+
+The `deserialize` and `unserialize` functions are exactly the same. All they do, is wrap your serialized variable in parentheses and pass them to javascript's `eval` function. I think it goes without saying that you should not run `eval` on any serialized object that may have been modified by a user if you don't understand the risks.
+
+## Runtime Considerations
+Obviously, your object must exist before you can serialize it, so any resolving functions and variables will have their resolutions serialized,
+
+##### Examples:
+- `any_var`: you get whatever `any_var` is equal to
+- `(function(){ return true; })()` : you get `true`
+- `some_function()` : you get whatever is returned from this
+- `new Date()` : you get the date object returned
+  
+## Scoping Considerations
+Functions don't resolve variables until they're called, so if your object has functions that use externally declared variables, you'll have to redeclare them after unserializing to properly use those functions.
+
+##### Examples:
+
+```javascript
+var myVar = "myStr";
+var toast = {
+   print: () => { console.log(myVar); }
+   iAm: toast
+}
+```
+If you unserialize `toast` somewhere else and try to use it,  make sure `myVar` is declared in scope if you want the `print` function to work.
+
+Also keep in mind, that technically the variable name `toast` is also external to the object itself, so if you unserialize an object into a different variable name like `var newObj = toast`, `toast` still needs to be defined for `newObj`'s `iAm` method to work.
+
+## License
+
+MIT License, use however you like.
+
