@@ -1,13 +1,26 @@
-function serialize(value) {
+/*
+  value - the variable to serialize
+  LIMIT - (optional) number of chars to limit nested variables to, obviously breaks deserialize
+*/
+function serialize(value,LIMIT) {
   switch(typeof value) {
     case "function":
       var func = value.toString();
-      if (func.search(/\{[^'"`]+\[native code\][^'"`]+\}/g) > -1) {
-        if (window[value.name] === value) {
-          // native function on window
+      if (func.search(/\[[^,'"`]+\]/g) > -1) {
+	      var ROOT;
+	      if(window && typeof window === "object" && window.__proto__.constructor.name === "Window") {
+		      ROOT = window;
+	      } else if (global && typeof global === "object") {
+		      ROOT = global;
+	      } else {
+		      // huh? someone messed with either 'window' or 'global'
+		      return undefined;
+	      }
+        if (ROOT[value.name] === value) {
+          // native function on ROOT
           return value.name; 
         } else {
-          // native function not on window, 
+          // native function not on ROOT, 
           // check up one level for object, if available
           return undefined; 
         }
@@ -22,7 +35,10 @@ function serialize(value) {
       if (typeof value[Symbol.iterator] === "function") {
         let cstr = '[';
         for (index of value) {
-          let result = serialize(index);
+          let result = serialize(index,LIMIT);
+          if (typeof LIMIT === "number" && typeof result === "string" && result.length > LIMIT) {
+	          result = result.slice(0,LIMIT) + "...";
+          }
           cstr += result + ',';
         }
         if (cstr.length === 1) {
@@ -57,14 +73,16 @@ function serialize(value) {
       // Object
       var cstr = '{';
       var success = true;
-      var properties = Object.getOwnPropertyNames(value)
-                         .concat(Object.getOwnPropertySymbols(value));
+      var properties = Object.getOwnPropertyNames(value).concat(Object.getOwnPropertySymbols(value));
       for (let i = 0; i < properties.length; i++) {
         let key = properties[i];
         let val = value[key];
-        let result = serialize(val);
+        let result = serialize(val,LIMIT);
+        if (typeof LIMIT === "number" && typeof result === "string" && result.length > LIMIT) {
+          result = result.slice(0,LIMIT) + "...";
+        }
         // if undefined, an object with a native function was found,
-        // but it hasn't been found on the window yet, 
+        // but it hasn't been found on the ROOT yet, 
         // check its parent object in the next for loop below
         if (result === undefined) {
           success = false;
@@ -79,16 +97,25 @@ function serialize(value) {
           return cstr.substr(0,cstr.length-1) + '}';
         }
       }
-      // object with property set to non-window native function found
-      var windowProps = Object.getOwnPropertyNames(window);
-      for (let i = 0; i <  windowProps.length; i++) {
-        let prop = windowProps[i];
-        if (window[prop] === value) {
-          // object with native function found on window
+      // object with property set to non-ROOT native function found
+      var ROOT;
+      if(window && typeof window === "object" && window.__proto__.constructor.name === "Window") {
+	      ROOT = window;
+      } else if (global && typeof global === "object") {
+	      ROOT = global;
+      } else {
+	      // huh? someone messed with either 'window' or 'global'
+	      return undefined;
+      }
+      var rootProps = Object.getOwnPropertyNames(ROOT);
+      for (let i = 0; i <  rootProps.length; i++) {
+        let prop = rootProps[i];
+        if (ROOT[prop] === value) {
+          // object with native function found on ROOT
           return prop; 
         }
       }
-      // object with native function not found on window, 
+      // object with native function not found on ROOT, 
       // will have to check up one level for object
       return undefined; 
     case "number":
