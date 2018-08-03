@@ -8,7 +8,7 @@ function serialize(value,LIMIT) {
       var func = value.toString();
       if (func.search(/\[[^,'"`]+\]/g) > -1) {
 	      var ROOT;
-	      if(window && typeof window === "object" && window.__proto__.constructor.name === "Window") {
+	      if(window && typeof window === "object" && Object.getPrototypeOf(window).constructor.name === "Window") {
 		      ROOT = window;
 	      } else if (global && typeof global === "object") {
 		      ROOT = global;
@@ -31,6 +31,14 @@ function serialize(value,LIMIT) {
     case "object":
       // null
       if (value === null) return null;
+      // html node
+      if (typeof value.nodeType === "number" && value.nodeType > 0 && value.nodeType < 13) {
+        try {
+          return "(new DOMParser()).parseFromString(`" + (new XMLSerializer).serializeToString(value) + "`,'application/xml')";
+        } catch(err) {
+          // do nothing, it's not an html node
+        }
+      }
       // iterable objects: Array, Map, Set
       if (typeof value[Symbol.iterator] === "function") {
         let cstr = '[';
@@ -47,9 +55,9 @@ function serialize(value,LIMIT) {
           cstr = cstr.substr(0,cstr.length-1) + ']';
         }
         // use array literals for array
-        if (value.__proto__.constructor.name === "Array") return cstr;
+        if (Object.getPrototypeOf(value).constructor.name === "Array") return cstr;
         // use constructors for everything else, maps and sets
-        return 'new ' + value.__proto__.constructor.name + '(' + cstr + ')';
+        return 'new ' + Object.getPrototypeOf(value).constructor.name + '(' + cstr + ')';
       }
       // RegExp literal
       if (value instanceof RegExp) return String(value);
@@ -65,11 +73,11 @@ function serialize(value,LIMIT) {
           // Date
           arg = String(value);
         }
-        return 'new ' + value.__proto__.constructor.name + "('" + arg + "')";
+        return 'new ' + Object.getPrototypeOf(value).constructor.name + "('" + arg + "')";
       }
       // some non-iterable object with prototype that is not from Object
       // unfortuntaely, we just return '[object Object]' here
-      if (value.__proto__.constructor.name !== "Object") return "'" + value.toString() + "'";
+      if (Object.getPrototypeOf(value).constructor.name !== "Object") return "'" + value.toString() + "'";
       // Object
       var cstr = '{';
       var success = true;
@@ -99,7 +107,7 @@ function serialize(value,LIMIT) {
       }
       // object with property set to non-ROOT native function found
       var ROOT;
-      if(window && typeof window === "object" && window.__proto__.constructor.name === "Window") {
+      if(window && typeof window === "object" && Object.getPrototypeOf(window).constructor.name === "Window") {
 	      ROOT = window;
       } else if (global && typeof global === "object") {
 	      ROOT = global;

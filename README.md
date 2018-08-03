@@ -1,6 +1,6 @@
 # Javascript-Serializer
 
-This is a browser-based javascript serializer (it does not work on Node since this uses the `window` object). The `serialize` function can convert almost any variable into a string representation of itself. It's **useful for logs** and debugging.
+This is a javascript serializer. The `serialize` function can convert almost any variable into a string representation of itself. It's **useful for logs** and debugging.
 
 ## Usage
 
@@ -43,26 +43,31 @@ anonymous function | `function() { return 'goodbye world'; }`
 arrow function | `(result) => { return result; }`
 native function on the `window` | `Boolean, Date, Map, Number, Object, etc.`
 native object on the `window` | `Math, JSON, etc.`
-object with unique `toString()` | If it's string version is unique (in that it doesn't print `[object Object]`), serialize attempts to give you a string that will eval back to the object using that unique string.
-object that has `Object` prototype | A stringified version with all of its properties and symbols are created. If you ammended its prototype, those edits will be lost
+object that has `Object` prototype | `{ key: 123 }`. If you amended its prototype, those edits will be lost
+object that has `Node` in its prototype chain | `document, document.createElement('div')`
+
+## Possibly Supported Types
+Type | Explanation
+| --- | --- |
+object with unique `toString()` | If an object's toString method returns a unique string (in that it doesn't print `[object Object]`), serialize() attempts to give you a string that will eval back to the object using that unique string.
 
 ## Unsupported Types:
 Type | Explanation
 | --- | --- |
-objects with a common `toString()` method, a prototype different from `Object` and not iterable | ...so, for example, if you want to serialize a `Promise`, you'll just get the string: `[object Promise]`. That is because a `Promise` does not have a reflection method that gives me something I can eval back into a `Promise` object, and the function passed into new Promise() when creating it,  is being stored privately, so I can't access it to try and recreate the code string. ...here is a list of some example objects that can't be serialized: `Promise, WeakMap, WeakSet, ArrayBuffer, DataView, HTMLDocument, etc.`
-native functions and objects that are nested properties of the `window` |  In theory, they could be serialized,  if I chose to recursively search the `window` for them, but that's sounds crazy... the `window` can get massive. I might later add an option to turn a recursive search on for those who are daring. **If you try to serialize an object that has this type of value, you'll get undefined back for the whole thing.**
+objects with a common `toString()` method, a prototype different from `Object`, that don't have `Node` in its prototype chain, and that are not iterable | ...so, for example, if you want to serialize a `Promise`, you'll just get the string: `[object Promise]`. That is because a `Promise` does not have a reflection method that gives me something I can eval back into a `Promise` object, and the function passed into new Promise() when creating it, is being stored privately, so I can't access it to try and recreate the code string. ...here is a list of some example objects that can't be serialized: `Promise, WeakMap, WeakSet, ArrayBuffer, DataView, etc.`
+native functions and objects that are nested properties of the `window` |  In theory, they could be serialized, if I chose to recursively search the `window` for them, but that's sounds crazy... the `window` can get massive. I might later add an option to turn a recursive search on for those who are daring. **If you try to serialize an object that has this type of value, you'll get undefined back for the whole thing.**
   
 ## Other Notes
-- `errors`: If you eval the the serialized error, it will be thrown.
+- `errors`: If you eval the serialized error, it will be thrown.
 - `numbers`: There is no way to keep a number in scientific notation because they're always turned into fixed notation. `(1e4 -> 1000)`
-- `Proxy`: For some awful reason, a Proxy object's `__proto__.constructor.name` is equal to `Object`, so proxies become empty objects `{}`, instead of the string: `[object Proxy]`
+- `Proxy`: For some reason, a Proxy object's `__proto__.constructor.name` is equal to `Object`, so proxies become empty objects `{}`, instead of the string: `[object Proxy]`
 
 ## Deserialize/Unserialize
 
 The `deserialize` and `unserialize` functions are exactly the same. All they do, is wrap your serialized variable in parentheses and pass them to javascript's `eval` function. I think it goes without saying that you should not run `eval` on any serialized object that may have been modified by a user if you don't understand the risks.
 
 ## Runtime Considerations
-Obviously, your object must exist before you can serialize it, so any resolving functions and variables will have their resolutions serialized,
+Obviously, your object must exist before you can serialize it, so any resolving functions and variables will have their resolutions serialized.
 
 ##### Examples:
 - `any_var`: you get whatever `any_var` is equal to
