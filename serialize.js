@@ -34,11 +34,19 @@ function serialize(value,LIMIT) {
       // html node
       if (typeof value.nodeType === "number" && value.nodeType > 0 && value.nodeType < 13) {
         try {
-          // parsing always wraps element in #document, which we don't want if it's not a document node, so use children[0] to extract from #document
-          if (value.nodeType === 9) {
-            return "(new DOMParser()).parseFromString(`" + (new XMLSerializer).serializeToString(value) + "`,'application/xml')";
+          // we don't want to serialize if element has errors (it won't deserialize)
+          let xml = (new XMLSerializer).serializeToString(value);
+          let xmlErr = ((new DOMParser()).parseFromString(xml,'application/xml')).getElementsByTagName('parsererror');
+          
+          if (xmlErr.lenght < 1) {
+            // parsing always wraps element in #document, which we don't want if it's not a document node, so use children[0] to extract from #document
+            if (value.nodeType === 9) {
+              return ("(new DOMParser()).parseFromString(`" + xml + "`,'application/xml')");
+            } else {
+              return ("(new DOMParser()).parseFromString(`" + xml + "`,'application/xml').children[0]");
+            }
           } else {
-            return "(new DOMParser()).parseFromString(`" + (new XMLSerializer).serializeToString(value) + "`,'application/xml').children[0]";
+            return "'" + (Object.getPrototypeOf(value).constructor.name + ", " + xml).replace(/\n/g,"").replace(/'/g,"\\\'") + "'";
           }
         } catch(err) {
           // do nothing, it's not an html node
