@@ -1,3 +1,4 @@
+var document = document ? document : {}; // in case on node, not browser
 var native = 'nativer';
 var code = 'coder';
 var et = {v:'my name is v'};
@@ -75,6 +76,7 @@ var _this = {
   if: new ArrayBuffer(10),
   ig: new DataView(new ArrayBuffer(20)),
   doc: document,
+  docBod: document.body,
   get: () => { return _this.v },
   ma: Math,
   mb: JSON,

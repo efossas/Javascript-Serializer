@@ -34,7 +34,12 @@ function serialize(value,LIMIT) {
       // html node
       if (typeof value.nodeType === "number" && value.nodeType > 0 && value.nodeType < 13) {
         try {
-          return "(new DOMParser()).parseFromString(`" + (new XMLSerializer).serializeToString(value) + "`,'application/xml')";
+          // parsing always wraps element in #document, which we don't want if it's not a document node, so use children[0] to extract from #document
+          if (value.nodeType === 9) {
+            return "(new DOMParser()).parseFromString(`" + (new XMLSerializer).serializeToString(value) + "`,'application/xml')";
+          } else {
+            return "(new DOMParser()).parseFromString(`" + (new XMLSerializer).serializeToString(value) + "`,'application/xml').children[0]";
+          }
         } catch(err) {
           // do nothing, it's not an html node
         }
@@ -70,14 +75,23 @@ function serialize(value,LIMIT) {
           // Error
           arg = valString.substr(valString.indexOf(':')+2,valString.length);
         } else {
-          // Date
+          // Date, ???
           arg = String(value);
         }
         return 'new ' + Object.getPrototypeOf(value).constructor.name + "('" + arg + "')";
       }
-      // some non-iterable object with prototype that is not from Object
-      // unfortuntaely, we just return '[object Object]' here
-      if (Object.getPrototypeOf(value).constructor.name !== "Object") return "'" + value.toString() + "'";
+
+      var constructorName;
+      if (Object.getPrototypeOf(value).constructor.name !== "Object") {
+        // some non-iterable object with prototype that is not Object
+        // technically, we can't deserialize this, so instead, we'll capture constructor name and any exposed properties
+        // we'll save that in a string, so [object Example] -> "Example, { key: value }"
+        constructorName = Object.getPrototypeOf(value).constructor.name;
+      } else if (typeof Symbol.toStringTag !== "undefined" && typeof value[Symbol.toStringTag] === "string") {
+        // native object (potentially breakable if user uses Symbol.toStringTag on non-native object)
+        return value[Symbol.toStringTag];
+      }   
+      
       // Object
       var cstr = '{';
       var success = true;
@@ -89,43 +103,22 @@ function serialize(value,LIMIT) {
         if (typeof LIMIT === "number" && typeof result === "string" && result.length > LIMIT) {
           result = result.slice(0,LIMIT) + "...";
         }
-        // if undefined, an object with a native function was found,
-        // but it hasn't been found on the ROOT yet, 
-        // check its parent object in the next for loop below
-        if (result === undefined) {
-          success = false;
-          break;
-        }
-        cstr += key + ':' + result + ',';
-      }
-      if (success) {
-        if (cstr.length === 1) {
-          return cstr + '}' ; // empty object
+        if (typeof key === "symbol") {
+          cstr += key.toString() + ':' + result + ',';
         } else {
-          return cstr.substr(0,cstr.length-1) + '}';
+          cstr += key + ':' + result + ',';
         }
       }
-      // object with property set to non-ROOT native function found
-      var ROOT;
-      if(window && typeof window === "object" && Object.getPrototypeOf(window).constructor.name === "Window") {
-	      ROOT = window;
-      } else if (global && typeof global === "object") {
-	      ROOT = global;
+      if (cstr.length === 1) {
+        cstr = cstr + '}' ; // empty object
       } else {
-	      // huh? someone messed with either 'window' or 'global'
-	      return undefined;
+        cstr = cstr.substr(0,cstr.length-1) + '}';
       }
-      var rootProps = Object.getOwnPropertyNames(ROOT);
-      for (let i = 0; i <  rootProps.length; i++) {
-        let prop = rootProps[i];
-        if (ROOT[prop] === value) {
-          // object with native function found on ROOT
-          return prop; 
-        }
+      if (constructorName) {
+        return "'" + constructorName + ", " + cstr + "'";
+      } else {
+        return cstr;
       }
-      // object with native function not found on ROOT, 
-      // will have to check up one level for object
-      return undefined; 
     case "number":
       // Infinity, -Infinity, NaN, 1e4, 1.2e+4
       let numString = String(value);
