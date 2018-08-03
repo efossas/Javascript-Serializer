@@ -44,7 +44,7 @@ arrow function | `(result) => { return result; }`
 native function on the `window` | `Boolean, Date, Map, Number, Object, etc.`
 native object on the `window` | `Math, JSON, etc.`
 object that has `Object` prototype | `{ key: 123 }`. If you amended its prototype, those edits will be lost
-object that has `Node` in its prototype chain | `document, document.createElement('div')`
+object that has `Node` in its prototype chain | `document, document.createElement('div')`. The node will be checked for invalid XML. If it has any, you will not get something that deserializes back into a node. Instead, you will get the constructor name and a string version of it, like `HTMLElement, <div>something invalid</div>`. Also, if you get the string version, all newlines will have been stripped and template string interpolation will not process.
 
 ## Possibly Supported Types
 Type | Explanation
