@@ -55,7 +55,7 @@ object with unique `toString()` | If an object's toString method returns a uniqu
 Type | Explanation
 | --- | --- |
 objects with a common `toString()` method, a prototype different from `Object`, that don't have `Node` in its prototype chain, and that are not iterable | Since it's not possible to get something that will deserialize back into the original value, you'll get something that deserializes into a string that has the constructor name and any exposed properties, like: `Example, {key: 123}` ...here is a list of some example objects in this category: `Promise, WeakMap, WeakSet, ArrayBuffer, DataView, etc.`
-native functions that are nested properties of the `window` |  In theory, they could be serialized, if I chose to recursively search the `window` for them, but that's sounds crazy... the `window` can get massive. I might later add an option to turn a recursive search on for those who are daring ...here is a list of some example functions in this cateogry: `Math.abs, JSON.stringify`
+native functions that are nested properties of the `window` |  You will get `undefined` for any of these. In theory, they could be serialized, if I chose to recursively search the `window` for them, but that's sounds crazy... the `window` can get massive. I might later add an option to turn a recursive search on for those who are daring ...here is a list of some example functions in this cateogry: `Math.abs, JSON.stringify`
   
 ## Other Notes
 - `errors`: If you eval the serialized error, it will be thrown.
