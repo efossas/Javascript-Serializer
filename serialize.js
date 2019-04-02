@@ -6,14 +6,14 @@ function serialize(value,LIMIT) {
   switch(typeof value) {
     case "function":
       var func = value.toString();
-      if (func.search(/\[[^,'"`]+\]/g) > -1) {
+      if (func.search(/[,'"`]/g) === -1 && func.search(/\[.+\]/g) > -1) {
 	      var ROOT;
-	      if(window && typeof window === "object" && Object.getPrototypeOf(window).constructor.name === "Window") {
+	      if(typeof window !== "undefined" && window && typeof window === "object" && Object.getPrototypeOf(window).constructor.name === "Window") {
 		      ROOT = window;
 	      } else if (global && typeof global === "object") {
 		      ROOT = global;
-	      } else {
-		      // huh? someone messed with either 'window' or 'global'
+		    } else {
+		      // mongo shell never defines circular global variable to root 'this' object
 		      return undefined;
 	      }
         if (ROOT[value.name] === value) {
@@ -31,6 +31,7 @@ function serialize(value,LIMIT) {
     case "object":
       // null
       if (value === null) return null;
+      
       // html node
       if (typeof value.nodeType === "number" && value.nodeType > 0 && value.nodeType < 13) {
         try {
@@ -38,7 +39,7 @@ function serialize(value,LIMIT) {
           let xml = (new XMLSerializer).serializeToString(value);
           let xmlErr = ((new DOMParser()).parseFromString(xml,'application/xml')).getElementsByTagName('parsererror');
           
-          if (xmlErr.lenght < 1) {
+          if (xmlErr.length < 1) {
             // parsing always wraps element in #document, which we don't want if it's not a document node, so use children[0] to extract from #document
             if (value.nodeType === 9) {
               return ("(new DOMParser()).parseFromString(`" + xml + "`,'application/xml')");
@@ -52,6 +53,7 @@ function serialize(value,LIMIT) {
           // do nothing, it's not an html node
         }
       }
+      
       // iterable objects: Array, Map, Set
       if (typeof value[Symbol.iterator] === "function") {
         let cstr = '[';
@@ -72,21 +74,25 @@ function serialize(value,LIMIT) {
         // use constructors for everything else, maps and sets
         return 'new ' + Object.getPrototypeOf(value).constructor.name + '(' + cstr + ')';
       }
+      
       // RegExp literal
       if (value instanceof RegExp) return String(value);
+      
       // if the string version of the object is unique (as in it doesn't print [object Object]),
       // we're going to give the user a string that can evaluate to the object, hopefully
-      var valString = value.toString();
-      if (valString.search(/\[.*\]/g) === -1) {
-        var arg;
-        if (valString.search(/^[\w]*Error:/g) > -1) {
-          // Error
-          arg = valString.substr(valString.indexOf(':')+2,valString.length);
-        } else {
-          // Date, ???
-          arg = String(value);
+      if (typeof value.toString === "function") {
+        var valString = value.toString();
+        if (valString.search(/\[.*\]/g) === -1) {
+          var arg;
+          if (valString.search(/^[\w]*Error:/g) > -1) {
+            // Error
+            arg = valString.substr(valString.indexOf(':')+2,valString.length);
+          } else {
+            // Date, ???
+            arg = String(value);
+          }
+          return 'new ' + Object.getPrototypeOf(value).constructor.name + "('" + arg + "')";
         }
-        return 'new ' + Object.getPrototypeOf(value).constructor.name + "('" + arg + "')";
       }
 
       var constructorName;

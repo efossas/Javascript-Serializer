@@ -1,3 +1,4 @@
+
 var document = document ? document : {}; // in case on node, not browser
 var native = 'nativer';
 var code = 'coder';
@@ -7,6 +8,8 @@ var _this = {
   ab: Date,
   ac: Map,
   ad: eval,
+  ae: Buffer,
+  af: Buffer.from([0,1,2,3,4,5]),
   bb: null,
   bc: undefined,
   bd: 123,
@@ -80,6 +83,7 @@ var _this = {
   get: () => { return _this.v },
   ma: Math,
   mb: JSON,
+  mc: JSON.stringify,
   lo: new Proxy({}, { get: function(obj, prop) { return obj[prop]; } }),
   nest: 
   {
@@ -116,8 +120,13 @@ var _this = {
   zz: (a) => { return [global,local,a]; }
 };
 
-console.log(_this);
+//console.log(_this);
 var cereal = serialize(_this);
+//console.log(cereal);
 var copy = unserialize(cereal);
 console.log(copy);
+
+
+
+
 
